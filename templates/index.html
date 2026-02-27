@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title> 取证仪表盘</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f8fa; --dark: #24292e; --gray: #586069;
+      --accent: #28a745; --danger: #dc3545; --radius: 8px;
+    }
+    body { background: var(--bg); color: var(--dark); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    a { color: var(--dark); } a:hover { color: var(--accent); }
+    .navbar { background: var(--dark); color: #fff; }
+    .user-dropdown { position: relative; display: inline-block; }
+    .user-dropdown-toggle { background: transparent; border: none; color: #fff; display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.5rem; border-radius: var(--radius); }
+    .user-dropdown-toggle:hover { background: rgba(255,255,255,0.1); }
+    .user-dropdown-menu { position: absolute; top: 100%; right: 0; background: #fff; border: 1px solid #d0d7de; border-radius: var(--radius); min-width: 180px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; display: none; padding: 0.5rem 0; }
+    .user-dropdown-menu.show { display: block; }
+    .user-dropdown-item { display: block; padding: 0.5rem 1rem; color: var(--dark); text-decoration: none; white-space: nowrap; }
+    .user-dropdown-item:hover { background: var(--bg); color: var(--accent); }
+    .user-dropdown-divider { height: 1px; background: #d0d7de; margin: 0.5rem 0; }
+    .sidebar { width: 260px; background: #fff; border-right: 1px solid #d0d7de; min-height: calc(100vh - 56px); padding: 1rem 0; }
+    .sidebar .btn { color: var(--dark); background: transparent; border: none; border-radius: 0; text-align: left; padding: 0.65rem 1.25rem; width: 100%; }
+    .sidebar .btn:hover { color: var(--accent); background: rgba(40, 167, 69, 0.08); }
+    .sidebar .btn i { margin-right: 0.5rem; }
+    .main { flex: 1; background: #fff; padding: 2rem; }
+    .main h4 { margin-bottom: 1rem; }
+    .main ul { padding-left: 1.25rem; }
+    .main li { margin-bottom: 0.5rem; }
+    .btn-pika { background: var(--accent); border: 0; color: #fff; border-radius: var(--radius); font-size: 14px; }
+    .btn-pika:hover { background: #218838; color: #fff; }
+    .btn-stop { background: var(--danger); border: 0; color: #fff; border-radius: var(--radius); font-size: 14px; }
+    .btn-stop:hover { background: #c82333; color: #fff; }
+    .card-pika { background: #fff; border: 1px solid #d0d7de; border-radius: var(--radius); padding: 16px; margin-bottom: 8px; }
+    #resultArea { margin-top: 20px; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .status-green { background: var(--accent); }
+    .status-red { background: var(--danger); }
+    .status-gray { background: var(--gray); }
+    .seed-item { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+    .seed-item input { flex: 1; }
+    .seed-actions button { padding: 0.25rem 0.5rem; }
+    .config-alert { margin-top: 1rem; padding: 0.5rem; border-radius: var(--radius); display: none; }
+    .alert-success { background: rgba(40, 167, 69, 0.1); color: #155724; border: 1px solid #c3e6cb; display: block; }
+    .alert-danger { background: rgba(220, 53, 69, 0.1); color: #721c24; border: 1px solid #f5c6cb; display: block; }
+    .scheduler-status { padding: 1rem; border-radius: var(--radius); margin-bottom: 1.5rem; border: 1px solid #d0d7de; }
+    .status-info { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .status-text { font-weight: 500; }
+    .status-detail { font-size: 0.875rem; color: var(--gray); margin-left: 1.25rem; }
+    .modal-content { border-radius: var(--radius); border: 1px solid #d0d7de; }
+    .modal-header { border-bottom: 1px solid #d0d7de; background: var(--bg); }
+    .modal-footer { border-top: 1px solid #d0d7de; }
+    .config-group { margin-bottom: 1rem; }
+    .config-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+    .config-desc { font-size: 0.875rem; color: var(--gray); margin-top: 0.25rem; }
+    
+    /* 新增：多图片展示样式 */
+    .image-gallery { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .image-gallery img { width: 80px; height: 80px; object-fit: cover; border: 1px solid #d0d7de; border-radius: 4px; }
+    .image-count { font-size: 0.875rem; color: var(--gray); }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-dark">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 h1"><i class="bi bi-bug"></i> 取证仪表盘</span>
+      <div class="user-dropdown" id="userDropdown">
+        <button class="user-dropdown-toggle" id="userDropdownToggle">
+          <i class="bi bi-person-circle fs-5"></i>
+          <span>欢迎，{{ current_user.username }}</span>
+          <i class="bi bi-chevron-down fs-6"></i>
+        </button>
+        <div class="user-dropdown-menu" id="userDropdownMenu">
+          <a class="user-dropdown-item" href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#crawlerConfigModal">
+            <i class="bi bi-gear me-2"></i>爬虫配置
+          </a>
+          <div class="user-dropdown-divider"></div>
+          <a class="user-dropdown-item" href="{{ url_for('logout') }}">
+            <i class="bi bi-box-arrow-right me-2"></i>退出登录
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="modal fade" id="crawlerConfigModal" tabindex="-1" aria-labelledby="crawlerConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="crawlerConfigModalLabel">爬虫抓取配置</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="config-group">
+            <label for="modalDataDir">数据存储目录</label>
+            <input type="text" id="modalDataDir" class="form-control" placeholder="./data">
+            <div class="config-desc">取证的网页、截图、索引等数据的数据库存储路径（相对/绝对路径均可）</div>
+          </div>
+          
+          <div class="config-group">
+            <label for="modalHammingThreshold">以图搜图汉明距离阈值</label>
+            <input type="number" id="modalHammingThreshold" class="form-control" min="0" max="20" value="5">
+            <div class="config-desc">值越小匹配越严格（0=完全相同），建议范围：2-10</div>
+          </div>
+          
+          <div class="config-group">
+            <label for="modalMaxDepth">爬虫最大抓取深度</label>
+            <input type="number" id="modalMaxDepth" class="form-control" min="0" max="5" value="1">
+            <div class="config-desc">0=仅抓取种子URL，1=抓取种子URL+页面内链接，数值越大范围越广</div>
+          </div>
+          
+          <div id="modalConfigAlert" class="config-alert"></div>
+        </div>
+        <div class="modal-footer">
+          <button type=" button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-pika" onclick="saveCrawlerConfig()">保存配置</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex">
+    <aside class="sidebar">
+      <div class="px-3 mb-2">
+        <button class="btn" onclick="showPanel('key')">
+          <i class="bi bi-search"></i>关键字搜索
+        </button>
+        <button class="btn" onclick="showPanel('img')">
+          <i class="bi bi-image"></i>以图搜图
+        </button>
+        <button class="btn" onclick="showPanel('grab')">
+          <i class="bi bi-download"></i>即时取证
+        </button>
+        <button class="btn" onclick="showPanel('schedule')">
+          <i class="bi bi-clock"></i>定时取证
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <h4>欢迎使用取证仪表盘</h4>
+      <p>请按照以下步骤完成安装并开始使用取证仪表盘：</p>
+      <ul>
+        <li>步骤1：下载最新版本安装包并解压到本地目录。</li>
+        <li>步骤2：安装依赖环境（Python）。</li>
+        <li>步骤3：执行 <code>pip install -r requirements.txt</code> 安装 Python 依赖。</li>
+        <li>步骤4：运行 <code>python app.py</code> 自动启动系统，或浏览器访问 <code>http://localhost:5000</code>。</li>
+        <li>步骤5：使用侧边栏功能进行关键字搜索、以图搜图或即时取证以及定时取证功能。</li>
+      </ul>
+
+      <div id="inputCard" class="card-pika mt-3 d-none">
+        <div id="keyPanel" class="d-none">
+          <label class="form-label">关键字</label>
+          <input id="txtKey" class="form-control mb-2" placeholder="e.g. 虚假宣传">
+          <button class="btn btn-pika w-100" onclick="searchText()">搜索</button>
+        </div>
+        <div id="imgPanel" class="d-none">
+          <label class="form-label">选择图片</label>
+          <input type="file" id="imgFile" class="form-control mb-2" accept="image/*">
+          <button class="btn btn-pika w-100" onclick="searchImage()">搜索</button>
+        </div>
+        <div id="grabPanel" class="d-none">
+          <label class="form-label">URL</label>
+          <input id="grabUrl" class="form-control mb-2" placeholder="https://example.com">
+          <button class="btn btn-pika w-100" onclick="grabUrl()">抓取</button>
+        </div>
+        
+        <div id="schedulePanel" class="d-none">
+          <h5 class="mb-3">定时取证配置</h5>
+          
+          <div class="scheduler-status">
+            <div class="status-info">
+              <span id="statusDot" class="status-dot status-gray"></span>
+              <span id="statusText" class="status-text">调度器未运行</span>
+            </div>
+            <div id="statusDetail" class="status-detail">
+              下次执行时间：无
+            </div>
+            <div class="mt-2 d-flex gap-2">
+              <button id="startSchedulerBtn" class="btn btn-pika" onclick="startScheduler()">
+                <i class="bi bi-play-circle"></i> 启动调度器
+              </button>
+              <button id="stopSchedulerBtn" class="btn btn-stop" onclick="stopScheduler()" disabled>
+                <i class="bi bi-stop-circle"></i> 停止调度器
+              </button>
+              <button class="btn btn-outline-secondary" onclick="refreshSchedulerStatus()">
+                <i class="bi bi-refresh"></i> 刷新状态
+              </button>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">种子URL列表（可编辑/添加/删除）</label>
+            <div id="seedListContainer" class="mb-2">
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addSeedItem()">
+              <i class="bi bi-plus"></i> 添加入口URL
+            </button>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">执行方式</label>
+            <div class="d-flex gap-2 mb-2">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="scheduleType" value="interval" checked>
+                <label class="form-check-label">间隔执行</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="scheduleType" value="cron">
+                <label class="form-check-label">定时执行</label>
+              </div>
+            </div>
+            
+            <div id="intervalConfig">
+              <label class="form-label">间隔分钟数</label>
+              <input type="number" id="intervalMinutes" class="form-control mb-2" value="60" min="1">
+            </div>
+            
+            <div id="cronConfig" class="d-none">
+              <label class="form-label">Cron表达式（分 时 日 月 周）</label>
+              <input type="text" id="cronExpr" class="form-control mb-2" placeholder="例如: 0 12 * * * 表示每天12点">
+            </div>
+          </div>
+          
+          <button class="btn btn-pika w-100" onclick="saveScheduleConfig()">保存定时配置</button>
+          <div id="configAlert" class="config-alert"></div>
+        </div>
+      </div>
+
+      <div id="resultArea" class="border-top pt-2 mt-3">
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    window.onload = function() {
+      loadCrawlerConfig();
+      initUserDropdown();
+      ensureSeedInput();
+    }
+
+    function initUserDropdown() {
+      const toggleBtn = document.getElementById('userDropdownToggle');
+      const dropdownMenu = document.getElementById('userDropdownMenu');
+      dropdownMenu.addEventListener('click', function(e) { e.stopPropagation(); });
+      toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle('show');
+      });
+      document.addEventListener('click', function() {
+        dropdownMenu.classList.remove('show');
+      });
+    }
+
+    function showPanel(type) {
+      document.getElementById('inputCard').classList.remove('d-none');
+      ['key', 'img', 'grab', 'schedule'].forEach(panel => {
+        document.getElementById(panel + 'Panel').classList.add('d-none');
+      });
+      document.getElementById(type + 'Panel').classList.remove('d-none');
+      
+      if (type === 'schedule') {
+        loadScheduleConfig();
+        refreshSchedulerStatus();
+      }
+    }
+
+    function clearResults() {
+      document.getElementById('resultArea').innerHTML = '';
+    }
+
+    // 展示多张图片
+    function addCard(rec) {
+        const images = rec.images || [];
+        const imgGallery = images.length > 0 
+            ? `<div class="image-gallery">${images.map(img => `<img src="data:image/jpeg;base64,${img.img_b64}" title="${img.image_url}">`).join('')}</div><div class="image-count">共 ${images.length} 张图片</div>`
+            : '';
+        
+        const dot = rec.hamming !== undefined && rec.hamming === 0 ? 'status-green' : 'status-gray';
+        const ham = rec.hamming !== undefined ? `· 距离 ${rec.hamming}` : '';
+        const timestamp = rec.timestamp instanceof Date ? rec.timestamp.toLocaleString() : rec.timestamp;
+        
+        document.getElementById('resultArea').insertAdjacentHTML('afterbegin', `
+            <div class="d-flex justify-content-between align-items-start py-2 border-bottom">
+              <div style="flex: 1;">
+                <span class="status-dot ${dot}"></span>
+                <a href="${rec.url}" target="_blank" class="fw-bold">${rec.url}</a>
+                <div class="code text-muted mt-1">IP: ${rec.ip} · 时间: ${timestamp} · SHA256: ${rec.sha256.slice(0, 8)} ${ham}</div>
+                ${imgGallery}
+              </div>
+            </div>
+        `);
+    }
+
+    async function searchText() {
+      const kw = document.getElementById('txtKey').value.trim();
+      if (!kw) return;
+      clearResults();
+      try {
+        const resp = await fetch('/api/search_text', { method: 'POST', body: new URLSearchParams({ keyword: kw }) });
+        const j = await resp.json();
+        if (!j.ok) return alert(j.msg);
+        j.data.forEach(addCard);
+      } catch (e) {
+        console.error('搜索失败:', e);
+        alert('搜索失败，请检查网络或关键字');
+      }
+    }
+
+    async function searchImage() {
+      const file = document.getElementById('imgFile').files[0];
+      if (!file) return;
+      clearResults();
+      try {
+        const body = new FormData();
+        body.append('img', file);
+        const resp = await fetch('/api/search_img', { method: 'POST', body: body });
+        const j = await resp.json();
+        if (!j.ok) return alert(j.msg);
+        j.data.forEach(addCard);
+      } catch (e) {
+        console.error('搜索失败:', e);
+        alert('搜索失败，请检查图片或网络');
+      }
+    }
+
+    async function grabUrl() {
+      const url = document.getElementById('grabUrl').value.trim();
+      if (!url) return;
+      const btn = event.target;
+      btn.disabled = true; btn.textContent = '抓取中...';
+      try {
+        const resp = await fetch('/api/取证', { method: 'POST', body: new URLSearchParams({ url: url }) });
+        const j = await resp.json();
+        btn.disabled = false; btn.textContent = '抓取';
+        if (!j.ok) return alert(j.msg);
+        addCard(j.data);
+      } catch (e) {
+        console.error('取证失败:', e);
+        btn.disabled = false; btn.textContent = '抓取';
+        alert('取证失败，请检查 URL 或网络');
+      }
+    }
+
+    async function loadCrawlerConfig() {
+      try {
+        const resp = await fetch('/api/schedule_config');
+        const res = await resp.json();
+        if (res.ok) {
+          const config = res.data;
+          document.getElementById('modalDataDir').value = config.data_dir || './data';
+          document.getElementById('modalHammingThreshold').value = config.hamming_threshold || 5;
+          document.getElementById('modalMaxDepth').value = config.max_depth || 1;
+        }
+      } catch (e) {
+        console.error('加载爬虫配置失败:', e);
+      }
+    }
+
+    function showModalConfigAlert(message, type) {
+      const alertEl = document.getElementById('modalConfigAlert');
+      alertEl.textContent = message;
+      alertEl.className = `config-alert alert-${type}`;
+      setTimeout(() => { alertEl.className = 'config-alert'; alertEl.textContent = ''; }, 3000);
+    }
+
+    async function saveCrawlerConfig() {
+      const dataDir = document.getElementById('modalDataDir').value.trim() || './data';
+      const hammingThreshold = parseInt(document.getElementById('modalHammingThreshold').value);
+      const maxDepth = parseInt(document.getElementById('modalMaxDepth').value);
+      
+      if (isNaN(hammingThreshold) || hammingThreshold < 0 || hammingThreshold > 20) {
+        showModalConfigAlert('汉明距离阈值必须是0-20之间的数字', 'danger'); return;
+      }
+      if (isNaN(maxDepth) || maxDepth < 0 || maxDepth > 5) {
+        showModalConfigAlert('抓取深度必须是0-5之间的数字', 'danger'); return;
+      }
+      
+      try {
+        const resp = await fetch('/api/schedule_config');
+        const res = await resp.json();
+        const existingConfig = res.ok ? res.data : {};
+        
+        const configData = {
+          ...existingConfig,
+          data_dir: dataDir,
+          hamming_threshold: hammingThreshold,
+          max_depth: maxDepth
+        };
+        
+        const saveResp = await fetch('/api/schedule_config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(configData)
+        });
+        
+        const saveRes = await saveResp.json();
+        if (saveRes.ok) {
+          showModalConfigAlert('爬虫配置保存成功', 'success');
+          setTimeout(() => {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('crawlerConfigModal'));
+            modal.hide();
+          }, 1500);
+        } else {
+          showModalConfigAlert(`保存失败: ${saveRes.msg || '未知错误'}`, 'danger');
+        }
+      } catch (e) {
+        console.error('保存爬虫配置失败:', e);
+        showModalConfigAlert('保存失败，请检查网络连接', 'danger');
+      }
+    }
+
+    document.querySelectorAll('input[name="scheduleType"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        document.getElementById('intervalConfig').classList.add('d-none');
+        document.getElementById('cronConfig').classList.add('d-none');
+        document.getElementById(this.value + 'Config').classList.remove('d-none');
+      });
+    });
+
+    function addSeedItem(seedValue = '') {
+      const container = document.getElementById('seedListContainer');
+      const seedItem = document.createElement('div');
+      seedItem.className = 'seed-item';
+      seedItem.innerHTML = `
+        <input type="text" class="form-control seed-input" placeholder="https://example.com" value="${seedValue}">
+        <div class="seed-actions">
+          <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeSeedItem(this)">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      `;
+      container.appendChild(seedItem);
+    }
+
+    function removeSeedItem(btn) {
+      const parent = btn.closest('.seed-item');
+      if (parent) parent.remove();
+      ensureSeedInput();
+    }
+
+    function ensureSeedInput() {
+      if (document.querySelectorAll('.seed-item').length === 0) {
+        addSeedItem();
+      }
+    }
+
+    async function loadScheduleConfig() {
+      try {
+        const resp = await fetch('/api/schedule_config');
+        const res = await resp.json();
+        
+        if (res.ok) {
+          const config = res.data;
+          const seedContainer = document.getElementById('seedListContainer');
+          seedContainer.innerHTML = '';
+          if (config.seeds && config.seeds.length > 0) {
+            config.seeds.forEach(seed => addSeedItem(seed));
+          } else {
+            addSeedItem();
+          }
+          
+          const scheduleType = config.schedule?.type || 'interval';
+          document.querySelector(`input[value="${scheduleType}"]`).checked = true;
+          
+          if (scheduleType === 'interval') {
+            document.getElementById('intervalMinutes').value = config.schedule?.minutes || 60;
+          } else {
+            const cron = config.schedule || {};
+            const cronExpr = `${cron.minute || '*'} ${cron.hour || '*'} ${cron.day || '*'} ${cron.month || '*'} ${cron.week || '*'}`;
+            document.getElementById('cronExpr').value = cronExpr;
+          }
+          
+          document.querySelector(`input[value="${scheduleType}"]`).dispatchEvent(new Event('change'));
+        }
+      } catch (e) {
+        console.error('加载定时配置失败:', e);
+        showConfigAlert('加载配置失败，请刷新重试', 'danger');
+      }
+    }
+
+    function showConfigAlert(message, type) {
+      const alertEl = document.getElementById('configAlert');
+      alertEl.textContent = message;
+      alertEl.className = `config-alert alert-${type}`;
+      setTimeout(() => { alertEl.className = 'config-alert'; alertEl.textContent = ''; }, 3000);
+    }
+
+    async function saveScheduleConfig() {
+      const seedInputs = document.querySelectorAll('.seed-input');
+      const seeds = Array.from(seedInputs)
+        .map(input => input.value.trim())
+        .filter(seed => seed && seed.length > 0);
+      
+      const urlRegex = /^https?:\/\/.+/;
+      const invalidSeeds = seeds.filter(seed => !urlRegex.test(seed));
+      if (invalidSeeds.length > 0) {
+        showConfigAlert(`URL格式错误: ${invalidSeeds.join(', ')}（必须以http/https开头）`, 'danger');
+        return;
+      }
+      
+      const scheduleType = document.querySelector('input[name="scheduleType"]:checked').value;
+      const scheduleConfig = { type: scheduleType };
+      
+      if (scheduleType === 'interval') {
+        const minutes = parseInt(document.getElementById('intervalMinutes').value);
+        if (isNaN(minutes) || minutes < 1) {
+          showConfigAlert('间隔时间必须是大于0的数字', 'danger');
+          return;
+        }
+        scheduleConfig.minutes = minutes;
+      } else {
+        const cronExpr = document.getElementById('cronExpr').value.trim();
+        const cronParts = cronExpr.split(/\s+/);
+        if (cronParts.length !== 5) {
+          showConfigAlert('Cron表达式格式错误（分 时 日 月 周）', 'danger');
+          return;
+        }
+        scheduleConfig.minute = cronParts[0];
+        scheduleConfig.hour = cronParts[1];
+        scheduleConfig.day = cronParts[2];
+        scheduleConfig.month = cronParts[3];
+        scheduleConfig.week = cronParts[4];
+      }
+      
+      try {
+        const resp = await fetch('/api/schedule_config');
+        const res = await resp.json();
+        const existingConfig = res.ok ? res.data : {};
+        
+        const configData = {
+          ...existingConfig,
+          seeds: seeds,
+          schedule: scheduleConfig
+        };
+        
+        const saveResp = await fetch('/api/schedule_config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(configData)
+        });
+        
+        const saveRes = await saveResp.json();
+        if (saveRes.ok) {
+          showConfigAlert('定时配置保存成功', 'success');
+          refreshSchedulerStatus();
+        } else {
+          showConfigAlert(`保存失败: ${saveRes.msg || '未知错误'}`, 'danger');
+        }
+      } catch (e) {
+        console.error('保存定时配置失败:', e);
+        showConfigAlert('保存失败，请检查网络连接', 'danger');
+      }
+    }
+
+    async function refreshSchedulerStatus() {
+      try {
+        const resp = await fetch('/api/scheduler_status');
+        const res = await resp.json();
+        
+        if (res.ok) {
+          const status = res.data;
+          const statusDot = document.getElementById('statusDot');
+          const statusText = document.getElementById('statusText');
+          const statusDetail = document.getElementById('statusDetail');
+          const startBtn = document.getElementById('startSchedulerBtn');
+          const stopBtn = document.getElementById('stopSchedulerBtn');
+          
+          if (status.running) {
+            statusDot.className = 'status-dot status-green';
+            statusText.textContent = '调度器正在运行';
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+          } else {
+            statusDot.className = 'status-dot status-red';
+            statusText.textContent = '调度器已停止';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+          }
+          
+          const lastRun = status.last_run ? new Date(status.last_run).toLocaleString() : '无';
+          const nextRun = status.next_run ? new Date(status.next_run).toLocaleString() : '无';
+          statusDetail.textContent = ` 下次执行时间：${nextRun}`;
+        }
+      } catch (e) {
+        console.error('刷新状态失败:', e);
+        showConfigAlert('刷新调度器状态失败', 'danger');
+      }
+    }
+
+    async function startScheduler() {
+      const btn = document.getElementById('startSchedulerBtn');
+      btn.disabled = true;
+      try {
+        const resp = await fetch('/api/start_scheduler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const res = await resp.json();
+        if (res.ok) {
+          showConfigAlert('调度器启动成功', 'success');
+          setTimeout(() => refreshSchedulerStatus(), 500);
+        } else {
+          showConfigAlert(`启动失败: ${res.msg}`, 'danger');
+        }
+      } catch (e) {
+        console.error('启动调度器失败:', e);
+        showConfigAlert('启动失败，请检查网络', 'danger');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function stopScheduler() {
+      const btn = document.getElementById('stopSchedulerBtn');
+      btn.disabled = true;
+      try {
+        const resp = await fetch('/api/stop_scheduler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const res = await resp.json();
+        if (res.ok) {
+          showConfigAlert('调度器停止成功', 'success');
+          setTimeout(() => refreshSchedulerStatus(), 200);
+        } else {
+          showConfigAlert(`停止失败: ${res.msg}`, 'danger');
+        }
+      } catch (e) {
+        console.error('停止调度器失败:', e);
+        showConfigAlert('停止失败，请检查网络', 'danger');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

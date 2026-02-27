@@ -1,0 +1,18 @@
+data_dir: ./data
+hamming_threshold: 10
+max_depth: 0
+crawler:
+  request_delay:
+  - 1.0
+  - 3.0
+  retry_times: 3
+  retry_delay: 5
+  timeout:
+  - 10
+  - 30
+schedule:
+  minutes: 1
+  type: interval
+seeds:
+- https://www.nipic.com/
+- https://www.sucai999.com/
